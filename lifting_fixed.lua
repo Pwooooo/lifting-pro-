@@ -138,6 +138,9 @@ local function hookCharacter()
     if LocalPlayer.Character then
         onCharacterAdded(LocalPlayer.Character)
     end
+    
+    -- Also handle WalkSpeed changes from the slider without recursion
+    local walkSpeedDebounce = false
 end
 
 -- Auto Gain Muscle (fires GainMuscle rapidly)
