@@ -1,4 +1,4 @@
-﻿import pathlib
+mport pathlib
 p = pathlib.Path(r"C:\Users\Sabri\AppData\Local\Temp\opencode\lifting_simulator.lua")
 t = """-- Lifting Simulator: Remastered | Auto Farm Script
 -- Features: Unlimited Muscle Multiplier, Unlock All Gamepasses, Lifting Speed Multiplier
