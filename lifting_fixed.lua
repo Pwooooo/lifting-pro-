@@ -1,4 +1,6 @@
--- Lifting Simulator: Remastered | Auto Farm Script
+mport pathlib
+p = pathlib.Path(r"C:\Users\Sabri\AppData\Local\Temp\opencode\lifting_simulator.lua")
+t = """-- Lifting Simulator: Remastered | Auto Farm Script
 -- Features: Unlimited Muscle Multiplier, Unlock All Gamepasses, Lifting Speed Multiplier
 -- Place: Lifting Simulator: Remastered (PlaceId: 78544923215308)
 
@@ -13,53 +15,45 @@ local LocalPlayer = Players.LocalPlayer
 local RemoteEvent = ReplicatedStorage:WaitForChild("RemoteEvent")
 local RemoteFunction = ReplicatedStorage:WaitForChild("RemoteFunction")
 
--- Obsidian Library with proper fallback
+-- Obsidian Library with error handling
 local Library
-local obsidianLoaded = false
 local ok, result = pcall(function()
     return loadstring(game:HttpGet("https://raw.githubusercontent.com/deividcomsono/Obsidian/main/Library.lua"))()
 end)
-if ok and result then
-    Library = result
-    obsidianLoaded = true
-else
-    warn("Obsidian load failed: " .. tostring(result))
-    obsidianLoaded = false
-end
-
-if not obsidianLoaded then
+if not ok then
     -- Fallback: minimal UI library
-    Library = {}
-    function Library:CreateWindow(opts)
-        local ScreenGui = Instance.new("ScreenGui")
-        ScreenGui.Name = "FallbackUI"
-        ScreenGui.Parent = game:GetService("CoreGui")
-        local Frame = Instance.new("Frame")
-        Frame.Size = UDim2.new(0, 400, 0, 300)
-        Frame.Position = UDim2.new(0.5, -200, 0.5, -150)
-        Frame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-        Frame.BorderSizePixel = 0
-        Frame.Parent = ScreenGui
-        local TextLabel = Instance.new("TextLabel")
-        TextLabel.Size = UDim2.new(1, 0, 1, 0)
-        TextLabel.Text = opts.Title .. "\n(Obsidian failed - minimal UI)"
-        TextLabel.TextColor3 = Color3.new(1, 1, 1)
-        TextLabel.BackgroundTransparency = 1
-        TextLabel.TextScaled = true
-        TextLabel.Parent = Frame
-        return {
-            AddTab = function(self, name, icon)
-                return {
-                    AddLeftGroupbox = function() return {AddSlider=function() end, AddToggle=function() end, AddDivider=function() end, AddButton=function() end, AddLabel=function() end} end,
-                    AddRightGroupbox = function() return {AddSlider=function() end, AddToggle=function() end, AddDivider=function() end, AddButton=function() end, AddLabel=function() end} end,
-                }
-            end,
-        }
-    end
-    function Library:Notify(msg, dur) print("[Notify] " .. msg) end
-    function Library:Unload() end
+    warn("Obsidian load failed: " .. tostring(result))
+    Library = {
+        CreateWindow = function(self, opts)
+            local ScreenGui = Instance.new("ScreenGui")
+            ScreenGui.Name = "FallbackUI"
+            ScreenGui.Parent = game:GetService("CoreGui")
+            local Frame = Instance.new("Frame")
+            Frame.Size = UDim2.new(0, 400, 0, 300)
+            Frame.Position = UDim2.new(0.5, -200, 0.5, -150)
+            Frame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+            Frame.BorderSizePixel = 0
+            Frame.Parent = ScreenGui
+            local TextLabel = Instance.new("TextLabel")
+            TextLabel.Size = UDim2.new(1, 0, 1, 0)
+            TextLabel.Text = opts.Title .. "\n(Obsidian failed - minimal UI)"
+            TextLabel.TextColor3 = Color3.new(1, 1, 1)
+            TextLabel.BackgroundTransparency = 1
+            TextLabel.TextScaled = true
+            TextLabel.Parent = Frame
+            return {
+                AddTab = function(self, name, icon)
+                    return {
+                        AddLeftGroupbox = function() return {AddSlider=function() end, AddToggle=function() end, AddDivider=function() end, AddButton=function() end, AddLabel=function() end} end,
+                        AddRightGroupbox = function() return {AddSlider=function() end, AddToggle=function() end, AddDivider=function() end, AddButton=function() end, AddLabel=function() end} end,
+                    }
+                end,
+                Unload = function() ScreenGui:Destroy() end,
+                Notify = function(self, msg, dur) print("[Notify] " .. msg) end,
+            }
+        end,
+    }
 end
-
 local Window = Library:CreateWindow({
     Title = "Lifting Simulator | PWO",
     Footer = "opp pwo hehehehe",
@@ -86,25 +80,40 @@ local function hookPlayerData()
     local ClientModuleStorage = ReplicatedStorage:WaitForChild("ClientModuleStorage")
     local ClientRemoteController_Module = require(ClientModuleStorage:WaitForChild("ClientRemoteController_Module"))
     
+    -- Store original functions
     local originalCreateOnClientRemoteEvent = ClientRemoteController_Module.CreateOnClientRemoteEvent
     
+    -- Override CreateOnClientRemoteEvent to intercept PlayerData
     ClientRemoteController_Module.CreateOnClientRemoteEvent = function(p1)
         local result = originalCreateOnClientRemoteEvent(p1)
+        
+        -- After PlayerData is set, apply our modifications
         task.wait(0.5)
         if ClientRemoteController_Module.t and ClientRemoteController_Module.t.PlayerData then
             local PlayerData = ClientRemoteController_Module.t.PlayerData
+            
+            -- Unlimited Muscle Multiplier (bypass 100 cap)
             if muscleMultiplier > 100 then
                 PlayerData.Multiplier = muscleMultiplier
                 PlayerData.Multiplier2 = muscleMultiplier
             end
+            
+            -- Unlock all gamepasses
             if gamepassesUnlocked and PlayerData.GamePass then
                 for k, v in pairs(PlayerData.GamePass) do
                     PlayerData.GamePass[k] = true
                 end
             end
+            
+            -- Lifting speed multiplier
+            if liftingSpeedMultiplier > 1 then
+                -- Will be applied to WalkSpeed via character hook
+            end
         end
+        
         return result
     end
+    
     return ClientRemoteController_Module
 end
 
@@ -118,6 +127,7 @@ local function hookCharacter()
                     humanoid.WalkSpeed = 16 * liftingSpeedMultiplier
                 end
             end)
+            -- Initial set
             if liftingSpeedMultiplier > 1 then
                 humanoid.WalkSpeed = 16 * liftingSpeedMultiplier
             end
@@ -136,6 +146,7 @@ local function startAutoGainMuscle()
     autoGainThread = task.spawn(function()
         local RemoteEvent = ReplicatedStorage:WaitForChild("RemoteEvent")
         while autoGainMuscle do
+            -- Check if character is alive
             local character = LocalPlayer.Character
             local humanoid = character and character:FindFirstChild("Humanoid")
             if humanoid and humanoid.Health > 0 and humanoid:GetState() ~= Enum.HumanoidStateType.Dead then
@@ -157,6 +168,7 @@ LeftMain:AddSlider("MuscleMultiplier", {
     Suffix = "x",
     Callback = function(v)
         muscleMultiplier = v
+        -- Apply to PlayerData if available
         pcall(function()
             local ClientModuleStorage = ReplicatedStorage:WaitForChild("ClientModuleStorage")
             local ClientRemoteController_Module = require(ClientModuleStorage:WaitForChild("ClientRemoteController_Module"))
@@ -193,6 +205,7 @@ LeftMain:AddSlider("LiftingSpeedMultiplier", {
     Suffix = "x",
     Callback = function(v)
         liftingSpeedMultiplier = v
+        -- Apply to current character
         local character = LocalPlayer.Character
         local humanoid = character and character:FindFirstChild("Humanoid")
         if humanoid then
@@ -250,11 +263,7 @@ LeftAuto:AddToggle("AutoGainMuscleToggle", {
     Default = false,
     Callback = function(v)
         autoGainMuscle = v
-        if v then
-            startAutoGainMuscle()
-        else
-            if autoGainThread then task.cancel(autoGainThread) autoGainThread=nil end
-        end
+        if v then startAutoGainMuscle() else if autoGainThread then task.cancel(autoGainThread) autoGainThread=nil end end
     end,
 })
 LeftAuto:AddSlider("AutoGainRate", {
@@ -327,3 +336,6 @@ LocalPlayer.OnTeleport:Connect(function(state)
 end)
 
 Library:Notify("Lifting Simulator: Remastered loaded!", 3)
+"""
+p.write_text(t, encoding="utf-8")
+print("done", len(t))
