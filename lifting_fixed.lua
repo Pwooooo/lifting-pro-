@@ -13,44 +13,53 @@ local LocalPlayer = Players.LocalPlayer
 local RemoteEvent = ReplicatedStorage:WaitForChild("RemoteEvent")
 local RemoteFunction = ReplicatedStorage:WaitForChild("RemoteFunction")
 
--- Obsidian Library with error handling
+-- Obsidian Library with proper fallback
 local Library
+local obsidianLoaded = false
 local ok, result = pcall(function()
     return loadstring(game:HttpGet("https://raw.githubusercontent.com/deividcomsono/Obsidian/main/Library.lua"))()
 end)
-if not ok then
+if ok and result then
+    Library = result
+    obsidianLoaded = true
+else
     warn("Obsidian load failed: " .. tostring(result))
-    Library = {
-        CreateWindow = function(self, opts)
-            local ScreenGui = Instance.new("ScreenGui")
-            ScreenGui.Name = "FallbackUI"
-            ScreenGui.Parent = game:GetService("CoreGui")
-            local Frame = Instance.new("Frame")
-            Frame.Size = UDim2.new(0, 400, 0, 300)
-            Frame.Position = UDim2.new(0.5, -200, 0.5, -150)
-            Frame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-            Frame.BorderSizePixel = 0
-            Frame.Parent = ScreenGui
-            local TextLabel = Instance.new("TextLabel")
-            TextLabel.Size = UDim2.new(1, 0, 1, 0)
-            TextLabel.Text = opts.Title .. "\n(Obsidian failed - minimal UI)"
-            TextLabel.TextColor3 = Color3.new(1, 1, 1)
-            TextLabel.BackgroundTransparency = 1
-            TextLabel.TextScaled = true
-            TextLabel.Parent = Frame
-            return {
-                AddTab = function(self, name, icon)
-                    return {
-                        AddLeftGroupbox = function() return {AddSlider=function() end, AddToggle=function() end, AddDivider=function() end, AddButton=function() end, AddLabel=function() end} end,
-                        AddRightGroupbox = function() return {AddSlider=function() end, AddToggle=function() end, AddDivider=function() end, AddButton=function() end, AddLabel=function() end} end,
-                    }
-                end,
-                Unload = function() ScreenGui:Destroy() end,
-                Notify = function(self, msg, dur) print("[Notify] " .. msg) end,
-            }
-        end,
-    }
+    obsidianLoaded = false
 end
+
+if not obsidianLoaded then
+    -- Fallback: minimal UI library
+    Library = {}
+    function Library:CreateWindow(opts)
+        local ScreenGui = Instance.new("ScreenGui")
+        ScreenGui.Name = "FallbackUI"
+        ScreenGui.Parent = game:GetService("CoreGui")
+        local Frame = Instance.new("Frame")
+        Frame.Size = UDim2.new(0, 400, 0, 300)
+        Frame.Position = UDim2.new(0.5, -200, 0.5, -150)
+        Frame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+        Frame.BorderSizePixel = 0
+        Frame.Parent = ScreenGui
+        local TextLabel = Instance.new("TextLabel")
+        TextLabel.Size = UDim2.new(1, 0, 1, 0)
+        TextLabel.Text = opts.Title .. "\n(Obsidian failed - minimal UI)"
+        TextLabel.TextColor3 = Color3.new(1, 1, 1)
+        TextLabel.BackgroundTransparency = 1
+        TextLabel.TextScaled = true
+        TextLabel.Parent = Frame
+        return {
+            AddTab = function(self, name, icon)
+                return {
+                    AddLeftGroupbox = function() return {AddSlider=function() end, AddToggle=function() end, AddDivider=function() end, AddButton=function() end, AddLabel=function() end} end,
+                    AddRightGroupbox = function() return {AddSlider=function() end, AddToggle=function() end, AddDivider=function() end, AddButton=function() end, AddLabel=function() end} end,
+                }
+            end,
+        }
+    end
+    function Library:Notify(msg, dur) print("[Notify] " .. msg) end
+    function Library:Unload() end
+end
+
 local Window = Library:CreateWindow({
     Title = "Lifting Simulator | PWO",
     Footer = "opp pwo hehehehe",
